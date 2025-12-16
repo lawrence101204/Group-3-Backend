@@ -4,7 +4,7 @@ import InquiryModal from "../components/InquiryModal.jsx";
 
 const API_BASE = "http://localhost:5000/api";
 
-// Helper: convert "10h" or "7h 45m" -> minutes
+// Helper: convert "10h" or "7h 45m" → minutes
 function durationToMinutes(str = "") {
   const h = /(\d+)\s*h/i.exec(str)?.[1];
   const m = /(\d+)\s*m/i.exec(str)?.[1];
@@ -17,7 +17,6 @@ function DetailsModal({ open, onClose, tour }) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-40">
       <div className="bg-white rounded-2xl max-w-4xl w-full p-6 relative shadow-lg">
-
         <div className="grid md:grid-cols-2 gap-6">
           {/* Left */}
           <div>
@@ -26,7 +25,7 @@ function DetailsModal({ open, onClose, tour }) {
             </h2>
 
             <p className="text-sm mb-2">
-              <span className="font-semibold">Locations :</span>{" "}
+              <span className="font-semibold">Locations:</span>{" "}
               {tour.locations}
             </p>
             <p className="text-sm mb-2">
@@ -36,7 +35,7 @@ function DetailsModal({ open, onClose, tour }) {
               {Number(tour.price).toLocaleString()}
             </p>
 
-            <p className="text-sm mb-1 font-semibold">Inclusions :</p>
+            <p className="text-sm mb-1 font-semibold">Inclusions:</p>
             <ul className="list-disc list-inside text-sm text-gray-700 mb-4">
               {(tour.inclusions || "")
                 .split(",")
@@ -87,24 +86,43 @@ export default function ToursPage() {
   const [tours, setTours] = useState([]);
   const [filtered, setFiltered] = useState([]);
 
-  // NEW: filter + sort state
   const [typeFilter, setTypeFilter] = useState("All types");
-  const [sortBy, setSortBy] = useState("recommendation"); // recommendation | price-asc | price-desc | duration-asc | name-asc
+  const [sortBy, setSortBy] = useState("recommendation");
+
+  const [search, setSearch] = useState("");
 
   const [selectedTour, setSelectedTour] = useState(null);
   const [inquiryOpen, setInquiryOpen] = useState(false);
+
   const [detailsTour, setDetailsTour] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [search, setSearch] = useState("");
 
+  // 🔹 LOAD TOURS FROM BACKEND (PAGINATED RESPONSE)
   const loadTours = async () => {
     try {
       const res = await fetch(`${API_BASE}/tours`);
-      const data = await res.json();
-      setTours(Array.isArray(data) ? data : []);
-      setFiltered(Array.isArray(data) ? data : []);
+      const json = await res.json();
+
+      console.log("CLIENT TOURS RESPONSE:", json);
+
+      let toursArray = [];
+
+      if (Array.isArray(json.data)) {
+        toursArray = json.data;
+      } else if (Array.isArray(json.data?.rows)) {
+        toursArray = json.data.rows;
+      } else if (Array.isArray(json.data?.items)) {
+        toursArray = json.data.items;
+      } else if (Array.isArray(json.data?.tours)) {
+        toursArray = json.data.tours;
+      }
+
+      setTours(toursArray);
+      setFiltered(toursArray);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to load tours:", err);
+      setTours([]);
+      setFiltered([]);
     }
   };
 
@@ -112,11 +130,11 @@ export default function ToursPage() {
     loadTours();
   }, []);
 
-  // Re-apply search + filter + sort whenever dependencies change
+  // 🔹 APPLY SEARCH + FILTER + SORT
   useEffect(() => {
     let out = [...tours];
 
-    // search
+    // Search
     if (search.trim()) {
       const q = search.toLowerCase();
       out = out.filter(
@@ -126,12 +144,14 @@ export default function ToursPage() {
       );
     }
 
-    // type filter
+    // Type filter
     if (typeFilter !== "All types") {
-      out = out.filter((t) => (t.type || "").toLowerCase() === typeFilter.toLowerCase());
+      out = out.filter(
+        (t) => (t.type || "").toLowerCase() === typeFilter.toLowerCase()
+      );
     }
 
-    // sort
+    // Sort
     switch (sortBy) {
       case "price-asc":
         out.sort((a, b) => Number(a.price) - Number(b.price));
@@ -141,22 +161,25 @@ export default function ToursPage() {
         break;
       case "duration-asc":
         out.sort(
-          (a, b) => durationToMinutes(a.duration) - durationToMinutes(b.duration)
+          (a, b) =>
+            durationToMinutes(a.duration) -
+            durationToMinutes(b.duration)
         );
         break;
       case "name-asc":
-        out.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        out.sort((a, b) =>
+          (a.name || "").localeCompare(b.name || "")
+        );
         break;
       case "recommendation":
       default:
-        // leave server order as-is
         break;
     }
 
     setFiltered(out);
   }, [tours, search, typeFilter, sortBy]);
 
-  // modal handlers
+  // 🔹 MODAL HANDLERS
   const handleInquire = (tour) => {
     setSelectedTour(tour);
     setInquiryOpen(true);
@@ -184,10 +207,10 @@ export default function ToursPage() {
 
   return (
     <main className="px-6">
-      {/* Filters & search bar */}
+      {/* FILTERS */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
         <div className="flex flex-wrap items-center gap-3">
-          {/* TYPE FILTER (select styled like your pill) */}
+          {/* TYPE FILTER */}
           <div className="relative">
             <select
               value={typeFilter}
@@ -204,7 +227,7 @@ export default function ToursPage() {
             </span>
           </div>
 
-          {/* SORT (select styled like your pill) */}
+          {/* SORT */}
           <div className="relative">
             <select
               value={sortBy}
@@ -223,6 +246,7 @@ export default function ToursPage() {
           </div>
         </div>
 
+        {/* SEARCH */}
         <div className="flex-1 md:max-w-md">
           <div className="flex items-center bg-white border border-gray-300 rounded-full px-4 py-2 shadow-sm">
             <span className="text-gray-400 mr-2">🔎︎</span>
@@ -237,7 +261,7 @@ export default function ToursPage() {
         </div>
       </div>
 
-      {/* Cards */}
+      {/* TOUR CARDS */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filtered.map((tour) => (
           <TourCard
@@ -248,11 +272,13 @@ export default function ToursPage() {
           />
         ))}
         {filtered.length === 0 && (
-          <p className="text-sm text-gray-500 col-span-full">No tours found.</p>
+          <p className="text-sm text-gray-500 col-span-full">
+            No tours found.
+          </p>
         )}
       </div>
 
-      {/* Modals */}
+      {/* MODALS */}
       <InquiryModal
         open={inquiryOpen}
         tour={selectedTour}

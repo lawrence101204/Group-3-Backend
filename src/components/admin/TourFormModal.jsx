@@ -2,6 +2,15 @@ import { useEffect, useState } from "react";
 
 const API_BASE = "http://localhost:5000/api";
 
+// Helper to attach JWT
+const authHeaders = () => {
+  const token = localStorage.getItem("lavera_admin_token");
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+};
+
 export default function TourFormModal({ open, onClose, initial, onSaved }) {
   const [form, setForm] = useState({
     name: "",
@@ -59,11 +68,22 @@ export default function TourFormModal({ open, onClose, initial, onSaved }) {
     const method = initial ? "PUT" : "POST";
 
     try {
-      await fetch(url, {
+      const res = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(),
         body: JSON.stringify(payload),
       });
+
+      // 🔐 Auto logout if token invalid
+      if (res.status === 401) {
+        localStorage.removeItem("lavera_admin_token");
+        window.location.href = "/login";
+        return;
+      }
+
+      if (!res.ok) {
+        throw new Error("Failed to save tour");
+      }
 
       onSaved();
       onClose();
@@ -73,7 +93,7 @@ export default function TourFormModal({ open, onClose, initial, onSaved }) {
     }
   };
 
-  const title = initial ? "Edit Tours" : "Add Tours";
+  const title = initial ? "Edit Tour" : "Add Tour";
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-40">
@@ -114,9 +134,7 @@ export default function TourFormModal({ open, onClose, initial, onSaved }) {
               </select>
             </div>
             <div>
-              <label className="text-xs text-gray-600">
-                Duration (e.g 6h or 10h 30m)
-              </label>
+              <label className="text-xs text-gray-600">Duration</label>
               <input
                 name="duration"
                 value={form.duration}
@@ -157,7 +175,6 @@ export default function TourFormModal({ open, onClose, initial, onSaved }) {
                 value={form.inclusions}
                 onChange={handleChange}
                 className="w-full border rounded-xl px-3 py-2 mt-1"
-                placeholder="Meals, hotels, entrance fees..."
               />
             </div>
           </div>
